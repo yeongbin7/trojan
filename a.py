@@ -3,17 +3,15 @@ from tkinter import filedialog
 from tkinter import messagebox
 import pandas as pd
 import numpy as np
-# import matplotlib.pyplot as plt
 import glob
 import os
-
+from sklearn.decomposition import PCA
 
 tk = Tk()
 tk.title("Trojan!!!")
 tk.geometry("600x400+100+100")
 tk.resizable(True,True)
 label = Label(tk, text="Trojan program")
-
 label.pack(side=TOP, padx=10, pady=10)
 number = 0
 processing_file_path = ""
@@ -26,7 +24,6 @@ def event():
     global number
     number += 1
     button['text'] = '버튼 누른횟수: ' + str(number)
-
     
 def file_load_event():
     global processing_file_path
@@ -68,8 +65,8 @@ def make_header_trusted_data():
         output_path = path_trust_name[i] + '.h5'
         data_free_amp.to_hdf(output_path, 'a')
 
-    messagebox.showinfo("Message", "Success for preprocessing trusted data")
-    preprocessing_button1['text'] = "Success for preprocessing trusted data"
+    messagebox.showinfo("Message", "Success for making header file from trusted data")
+    preprocessing_button1['text'] = "Success for making header file from trusted data"
 
 def make_header_trojan_data():
 
@@ -88,6 +85,31 @@ def make_header_trojan_data():
         data_free_amp = (data_free_raw.drop(columns='Time', axis=1)).T
         output_path = path_trojan_name[i] + '.h5'
         data_free_amp.to_hdf(output_path, 'a')
+
+    messagebox.showinfo("Message", "Success for making header file from trojan data")
+    preprocessing_button1['text'] = "Success for making header file from trojan data"
+
+def Preprocess_trusted_data():
+    trust_file_list = []
+    trust_file_dir = glob.glob(os.path.join(filedialog.askdirectory(), "*.h5"))
+    for i in trust_file_dir:
+        trust_file_list.append(pd.read_hdf(i))
+    n_pca = 1000
+    
+
+    messagebox.showinfo("Message", "Success for preprocessing trusted data")
+    preprocessing_button1['text'] = "Success for preprocessing trusted data"
+
+def Preprocess_trojan_data():
+    trojan_file_list = []
+    trojan_file_dir = glob.glob(os.path.join(filedialog.askdirectory(), "*.h5"))
+
+    for i in trojan_file_dir:
+        trojan_file_list.append(pd.read_hdf(i))
+    n_pca = 1000
+    # TODO: data cutting
+    for i in range(len(trojan_file_list)):
+        troj_mean_data = 
 
     messagebox.showinfo("Message", "Success for preprocessing trojan data")
     preprocessing_button1['text'] = "Success for preprocessing trojan data"
