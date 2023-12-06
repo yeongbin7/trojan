@@ -6,6 +6,7 @@ import numpy as np
 import glob
 import os
 from sklearn.decomposition import PCA
+from tqdm import tqdm
 
 tk = Tk()
 tk.title("Trojan!!!")
@@ -19,7 +20,13 @@ preprocessing_folder_path = ""
 preprocessing_button1 = Button()
 preprocessing_button2 = Button()
 preprocessing_button3 = Button()
-
+min_num = 0
+max_num = 0
+train_folder_path = ""
+test_folder_path = ""
+pre_trust_folder_path = ""
+pre_trojan_file_path = ""
+ent = Entry()
 def event():
     global number
     number += 1
@@ -42,6 +49,8 @@ def make_preprocessing_folder():
     preprocessing_folder_path = processing_dir +  "/preprocessing"
     # folder 없어도 넘어감
     os.makedirs(preprocessing_folder_path, exist_ok=True)
+    os.makedirs(preprocessing_folder_path + "/trojan", exist_ok=True)
+    os.makedirs(preprocessing_folder_path + "/trust_data", exist_ok=True)
     
     messagebox.showinfo("Message", "Success for making preprocessing folder!!")
     preprocessing_button1['text'] = "Success for making folder"
@@ -57,7 +66,7 @@ def make_header_trusted_data():
     
     for i in range(len(path_trust_name)):
         sub_list = []
-        file_free = glob.glob(os.path)
+        file_free = glob.glob(os.path.join(path_trust_name[i], "*.csv"))
         for f in file_free:
             sub_list.append(pd.read_csv(f))
         data_free_raw = pd.concat(sub_list[:], axis=1)
@@ -66,7 +75,7 @@ def make_header_trusted_data():
         data_free_amp.to_hdf(output_path, 'a')
 
     messagebox.showinfo("Message", "Success for making header file from trusted data")
-    preprocessing_button1['text'] = "Success for making header file from trusted data"
+    preprocessing_button2['text'] = "Success for making header file from trusted data"
 
 def make_header_trojan_data():
 
@@ -74,11 +83,12 @@ def make_header_trojan_data():
     trojan_dir = filedialog.askdirectory() + "/"
     trojan_name_list = os.listdir(trojan_dir)
     path_trojan_name = []
-    for i in range(len(trojan_name_list)):
+    print(trojan_name_list)
+    for i in tqdm(range(len(trojan_name_list))):
         path_trojan_name.append(trojan_dir + trojan_name_list[i])
-    for i in range(len(path_trojan_name)):
+    for i in tqdm(range(len(path_trojan_name))):
         sub_list = []
-        file_free = glob.glob(os.path)
+        file_free = glob.glob(os.path.join(path_trojan_name[i], "*.csv"))
         for f in file_free:
             sub_list.append(pd.read_csv(f))
         data_free_raw = pd.concat(sub_list[:], axis=1)
@@ -87,32 +97,60 @@ def make_header_trojan_data():
         data_free_amp.to_hdf(output_path, 'a')
 
     messagebox.showinfo("Message", "Success for making header file from trojan data")
-    preprocessing_button1['text'] = "Success for making header file from trojan data"
+    preprocessing_button3['text'] = "Success for making header file from trojan data"
 
 def Preprocess_trusted_data():
+    global min_num, max_num
+    global preprocessing_folder_path
     trust_file_list = []
     trust_file_dir = glob.glob(os.path.join(filedialog.askdirectory(), "*.h5"))
-    for i in trust_file_dir:
+    for i in tqdm(trust_file_dir):
         trust_file_list.append(pd.read_hdf(i))
     n_pca = 1000
-    
-
+    for i in tqdm(range(len(trust_file_list))):
+        trust_mean_data = trust_file_list[i].mean()
+        trust_mean_data = trust_mean_data[trust_mean_data >= 0.025]
+        s = trust_mean_data.to_frame()
+        if i == 0:
+            min_num = s.index[0]
+            max_num = s.index[-1]
+        else:
+            if min_num < s.index[0]:
+                min_num = s.index[0]
+            if max_num > s.index[-1]:
+                max_num = s.index[-1]
+    for i in tqdm(range(len(trust_file_list))):
+        trust_file_list[i] = trust_file_list[i].iloc[:,min_num:max_num]
+        trust_file_list[i].columns = range(1,max_num - min_num + 1)
+        pca = PCA(n_components=n_pca)
+        pca_data = pca.fit_transform(trust_file_list[i])
+        principalDf = pd.DataFrame(data=pca_data, columns = range(1,n_pca+1))
+        tru_dir = preprocessing_folder_path + "/trust_data/" + trust_file_dir[i].split('\\')[1]
+        principalDf.to_hdf(tru_dir, 'a')
+        print(" Save {} \n".format(trust_file_dir[i].split('\\')[1]))
     messagebox.showinfo("Message", "Success for preprocessing trusted data")
-    preprocessing_button1['text'] = "Success for preprocessing trusted data"
+    preprocessing_button4['text'] = "Success for preprocessing trusted data"
 
 def Preprocess_trojan_data():
+    global min_num, max_num
+    global preprocessing_folder_path
     trojan_file_list = []
     trojan_file_dir = glob.glob(os.path.join(filedialog.askdirectory(), "*.h5"))
-
     for i in trojan_file_dir:
         trojan_file_list.append(pd.read_hdf(i))
     n_pca = 1000
-    # TODO: data cutting
-    for i in range(len(trojan_file_list)):
-        troj_mean_data = 
 
+    for i in tqdm(range(len(trojan_file_list))):
+        trojan_file_list[i] = trojan_file_list[i].iloc[:,min_num:max_num]
+        trojan_file_list[i].columns = range(1,max_num - min_num + 1)
+        pca = PCA(n_components=n_pca)
+        pca_data = pca.fit_transform(trojan_file_list[i])
+        principalDf = pd.DataFrame(data=pca_data, columns = range(1,n_pca+1))
+        troj_dir = preprocessing_folder_path + "/trojan/" + trojan_file_dir[i].split('\\')[1]
+        principalDf.to_hdf(troj_dir, 'a')
+        print(" Save {} \n".format(trojan_file_dir[i].split('\\')[1]))
     messagebox.showinfo("Message", "Success for preprocessing trojan data")
-    preprocessing_button1['text'] = "Success for preprocessing trojan data"
+    preprocessing_button5['text'] = "Success for preprocessing trojan data"
 
 def preprocessing():
     global preprocessing_button1, preprocessing_button2, preprocessing_button3
@@ -123,28 +161,86 @@ def preprocessing():
     preprocessing_button1.pack()
     preprocessing_button2 = Button(newWindow, text="2. Make header as trusted csv data", command=make_header_trusted_data)
     preprocessing_button2.pack()
-    preprocessing_button3 = Button(newWindow, text="3. Preprocess trusted data", command=make_header_trojan_data)
-    preprocessing_button3.pack()
-    preprocessing_button4 = Button(newWindow, text="4. Make header as trojan csv data", command=make_header_trojan_data)
+    preprocessing_button4 = Button(newWindow, text="3. Make header as trojan csv data", command=make_header_trojan_data)
     preprocessing_button4.pack()
-    preprocessing_button5 = Button(newWindow, text="5. Preprocess trojan data", command=make_header_trojan_data)
+    preprocessing_button3 = Button(newWindow, text="4. Preprocess trusted data", command=Preprocess_trusted_data)
+    preprocessing_button3.pack()
+    preprocessing_button5 = Button(newWindow, text="5. Preprocess trojan data", command=Preprocess_trojan_data)
     preprocessing_button5.pack()
     labelExample.pack()
 
+def train_folder_path():
+    global train_folder_path
+    train_folder_path = filedialog.askdirectory() + "/"
 
+def test_folder_path():
+    global test_folder_path
+    test_folder_path = filedialog.askdirectory() + "/"
+
+def preprocessing_trust_folder_path():
+    global pre_trust_folder_path
+    pre_trust_folder_path = filedialog.askdirectory()
+
+def preprocessing_trojan_file_path():
+    global pre_trojan_file_path
+    pre_trojan_file_path = filedialog.askopenfilename()
+    print(pre_trojan_file_path)
+
+def split_data():
+    global train_folder_path, test_folder_path, pre_trust_folder_path, pre_trojan_file_path
+    total_data_list = []
+    split_factor = ent.get()
+    trust_data_list = os.listdir(pre_trust_folder_path)
+    for i in range(len(trust_data_list)):
+        total_data_list.append(pd.read_hdf(pre_trust_folder_path+"/"+ trust_data_list[i]))
+    troj_df = pd.read_hdf(pre_trojan_file_path)
+    total_data_list.append(troj_df)
+
+    for i in range(len(total_data_list)):
+        total_data_list[i]['label'] = i+1
+    total_data = pd.concat(total_data_list, ignore_index = True)
+    total_data = total_data.astype(dtype = 'float32', errors = 'ignore')
+    total_label_list = []
+
+    print("total_data")
+    print(total_data)
+    y_data = total_data['label']
+    x_data = total_data.drop(labels='label', axis=1)
+    print(y_data)
+    from sklearn.model_selection import train_test_split
+    x_train, x_test, y_train, y_test = train_test_split(x_data, y_data , test_size = float(split_factor), stratify=y_data) 
+
+    outputpath1= train_folder_path + 'x_train.h5'
+    x_train.to_hdf(outputpath1,'a')
+
+    outputpath2= test_folder_path + 'x_test.h5'
+    x_test.to_hdf(outputpath2,'a')
+
+    outputpath3= train_folder_path + 'y_train.h5'
+    y_train.to_hdf(outputpath3,'a')
+
+    outputpath4= test_folder_path + 'y_test.h5'
+    y_test.to_hdf(outputpath4,'a')
+    
 def total_dataset_and_split_data():
-    # global button6
+    global ent
     newWindow = Toplevel(tk)
     newWindow.geometry("200x200+100+100")
     labelExample = Label(newWindow, text="Total dataset")
     labelExample.pack()
-    button4 = Button(newWindow, text="New Window button", command=file_load_event)
+    button4 = Button(newWindow, text="select_pre_trust_folder", command=preprocessing_trust_folder_path)
     button4.pack()
-    button5 = Button(newWindow, text="New Window button", command=file_load_event)
+    button5 = Button(newWindow, text="select_pre_trojan_file", command=preprocessing_trojan_file_path)
     button5.pack()
-    button6 = Button(newWindow, text="New Window button", command=file_load_event)
+    button6 = Button(newWindow, text="select train folder", command=train_folder_path)
     button6.pack()
-
+    button7 = Button(newWindow, text="select test folder", command=test_folder_path)
+    button7.pack()
+    ent = Entry(newWindow)
+    ent.pack()
+    button8 = Button(newWindow, text="split data", command=split_data)
+    button8.pack()
+    
 def train_save_model():
     # global button6
     newWindow = Toplevel(tk)
