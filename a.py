@@ -8,6 +8,24 @@ import os
 from sklearn.decomposition import PCA
 from tqdm import tqdm
 
+import tensorflow as tf
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from tensorflow.keras.layers import Dense, Dropout
+from tensorflow.keras import Sequential
+from tensorflow.keras.optimizers import Adam
+
+from tensorflow.keras.utils import to_categorical
+from tensorflow.keras.callbacks import EarlyStopping
+from keras.backend import set_session
+from keras.backend import clear_session
+from keras.backend import get_session
+import gc
+from tensorflow import keras
+from sklearn.metrics import classification_report
+
+
 tk = Tk()
 tk.title("Trojan!!!")
 tk.geometry("600x400+100+100")
@@ -26,6 +44,10 @@ train_folder_path = ""
 test_folder_path = ""
 pre_trust_folder_path = ""
 pre_trojan_file_path = ""
+train_folder_path = ""
+test_folder_path = ""
+
+model = Sequential()
 ent = Entry()
 def event():
     global number
@@ -106,6 +128,7 @@ def Preprocess_trusted_data():
     trust_file_dir = glob.glob(os.path.join(filedialog.askdirectory(), "*.h5"))
     for i in tqdm(trust_file_dir):
         trust_file_list.append(pd.read_hdf(i))
+    print(trust_file_list[0])
     n_pca = 1000
     for i in tqdm(range(len(trust_file_list))):
         trust_mean_data = trust_file_list[i].mean()
@@ -221,7 +244,52 @@ def split_data():
 
     outputpath4= test_folder_path + 'y_test.h5'
     y_test.to_hdf(outputpath4,'a')
+
+def reset_keras():
+    sess = get_session()
+    clear_session()
+    sess.close()
+    sess = get_session()
+    try:
+        del classifier
+    except:
+        pass
+    print(gc.collect()) 
+    config = tf.compat.v1.ConfigProto()
+    config.gpu_options.per_process_gpu_memory_fraction = 1
+    config.gpu_options.visible_device_list = "0"
+    set_session(tf.compat.v1.Session(config=config))
+
+def train_data_and_test():
+    global train_folder_path, test_folder_path
+    x_train = pd.read_hdf(train_folder_path + 'x_train.h5').values
+    print(x_train.shape)
     
+    x_test = pd.read_hdf(test_folder_path + 'x_test.h5').values
+    print(x_test.shape)
+    y_train = pd.read_hdf(train_folder_path + 'y_train.h5').values
+    y_train = to_categorical(y_train)
+    y_test = pd.read_hdf(test_folder_path + 'y_test.h5').values
+    y_test = to_categorical(y_test)
+    print(y_train.shape)
+    print(y_test.shape)
+    global model
+    model = Sequential([
+        Dense(units = y_train.shape[1], input_dim = x_train.shape[1] , activation = 'softmax')
+    ])
+    model.compile(loss = 'categorical_crossentropy', optimizer = 'adam', metrics = ['acc'])
+
+    callback = keras.callbacks.EarlyStopping(monitor='loss',min_delta=0.0001,patience=10,verbose=1,restore_best_weights=True)
+    reset_keras()
+    history = model.fit(x_train, y_train, batch_size = 512, epochs = 10, callbacks = [callback] ,validation_data = (x_test, y_test))
+    y_pred = model.predict(x_test)
+    messagebox.showinfo("Message", "Success for training and testing data")
+
+
+def save_model():
+    model_path = filedialog.askdirectory() + "/model" 
+    model.save(model_path)
+
 def total_dataset_and_split_data():
     global ent
     newWindow = Toplevel(tk)
@@ -241,18 +309,20 @@ def total_dataset_and_split_data():
     button8 = Button(newWindow, text="split data", command=split_data)
     button8.pack()
     
+
 def train_save_model():
-    # global button6
     newWindow = Toplevel(tk)
     newWindow.geometry("200x200+100+100")
     labelExample = Label(newWindow, text="Train data and save model")
     labelExample.pack()
-    button4 = Button(newWindow, text="New Window button", command=file_load_event)
+    button4 = Button(newWindow, text="Select train folder", command=train_folder_path)
     button4.pack()
-    button5 = Button(newWindow, text="New Window button", command=file_load_event)
+    button5 = Button(newWindow, text="Select test folder", command=test_folder_path)
     button5.pack()
-    button6 = Button(newWindow, text="New Window button", command=file_load_event)
+    button6 = Button(newWindow, text="Train data and Test", command=train_data_and_test)
     button6.pack()
+    button7 = Button(newWindow, text="Save model", command=save_model)
+    button7.pack()
 
 button = Button(tk, text="Preprocessing", command=preprocessing, width=10, height=5)
 button2 = Button(tk, text="Total dataset", command= total_dataset_and_split_data, width=10, height=5)
