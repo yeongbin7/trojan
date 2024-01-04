@@ -28,16 +28,18 @@ from sklearn.metrics import classification_report
 
 tk = Tk()
 tk.title("Trojan!!!")
-tk.geometry("600x400+100+100")
+tk.geometry("450x200+100+100")
 tk.resizable(True,True)
 label = Label(tk, text="Trojan program")
-label.pack(side=TOP, padx=10, pady=10)
+label.pack(side=TOP)
 number = 0
 processing_file_path = ""
 preprocessing_folder_path = ""
 preprocessing_button1 = Button()
 preprocessing_button2 = Button()
 preprocessing_button3 = Button()
+preprocessing_button4 = Button()
+preprocessing_button5 = Button()
 min_num = 0
 max_num = 0
 train_folder_path = ""
@@ -129,7 +131,9 @@ def Preprocess_trusted_data():
     for i in tqdm(trust_file_dir):
         trust_file_list.append(pd.read_hdf(i))
     print(trust_file_list[0])
-    n_pca = 1000
+    n_pca = 10
+    min_num = 0
+    max_num = 0
     for i in tqdm(range(len(trust_file_list))):
         trust_mean_data = trust_file_list[i].mean()
         trust_mean_data = trust_mean_data[trust_mean_data >= 0.025]
@@ -142,14 +146,16 @@ def Preprocess_trusted_data():
                 min_num = s.index[0]
             if max_num > s.index[-1]:
                 max_num = s.index[-1]
+    print(min_num, max_num, max_num - min_num)
     for i in tqdm(range(len(trust_file_list))):
         trust_file_list[i] = trust_file_list[i].iloc[:,min_num:max_num]
         trust_file_list[i].columns = range(1,max_num - min_num + 1)
-        pca = PCA(n_components=n_pca)
-        pca_data = pca.fit_transform(trust_file_list[i])
-        principalDf = pd.DataFrame(data=pca_data, columns = range(1,n_pca+1))
+        # pca = PCA(n_components=n_pca)
+        # pca_data = pca.fit_transform(trust_file_list[i])
+        # principalDf = pd.DataFrame(data=pca_data, columns = range(1,max_num - min_num+1))
         tru_dir = preprocessing_folder_path + "/trust_data/" + trust_file_dir[i].split('\\')[1]
-        principalDf.to_hdf(tru_dir, 'a')
+        # principalDf.to_hdf(tru_dir, 'a')
+        trust_file_list[i].to_hdf(tru_dir, 'a')
         print(" Save {} \n".format(trust_file_dir[i].split('\\')[1]))
     messagebox.showinfo("Message", "Success for preprocessing trusted data")
     preprocessing_button4['text'] = "Success for preprocessing trusted data"
@@ -161,16 +167,16 @@ def Preprocess_trojan_data():
     trojan_file_dir = glob.glob(os.path.join(filedialog.askdirectory(), "*.h5"))
     for i in trojan_file_dir:
         trojan_file_list.append(pd.read_hdf(i))
-    n_pca = 1000
+    # n_pca = 1000
 
     for i in tqdm(range(len(trojan_file_list))):
         trojan_file_list[i] = trojan_file_list[i].iloc[:,min_num:max_num]
         trojan_file_list[i].columns = range(1,max_num - min_num + 1)
-        pca = PCA(n_components=n_pca)
-        pca_data = pca.fit_transform(trojan_file_list[i])
-        principalDf = pd.DataFrame(data=pca_data, columns = range(1,n_pca+1))
+        # pca = PCA(n_components=n_pca)
+        # pca_data = pca.fit_transform(trojan_file_list[i])
+        # principalDf = pd.DataFrame(data=pca_data, columns = range(1,n_pca+1))
         troj_dir = preprocessing_folder_path + "/trojan/" + trojan_file_dir[i].split('\\')[1]
-        principalDf.to_hdf(troj_dir, 'a')
+        trojan_file_list[i].to_hdf(troj_dir, 'a')
         print(" Save {} \n".format(trojan_file_dir[i].split('\\')[1]))
     messagebox.showinfo("Message", "Success for preprocessing trojan data")
     preprocessing_button5['text'] = "Success for preprocessing trojan data"
@@ -274,6 +280,7 @@ def train_data_and_test():
     print(y_train.shape)
     print(y_test.shape)
     global model
+    print(y_train.shape[1], x_train.shape[1])
     model = Sequential([
         Dense(units = y_train.shape[1], input_dim = x_train.shape[1] , activation = 'softmax')
     ])
@@ -281,14 +288,14 @@ def train_data_and_test():
 
     callback = keras.callbacks.EarlyStopping(monitor='loss',min_delta=0.0001,patience=10,verbose=1,restore_best_weights=True)
     reset_keras()
-    history = model.fit(x_train, y_train, batch_size = 512, epochs = 10, callbacks = [callback] ,validation_data = (x_test, y_test))
+    history = model.fit(x_train, y_train, batch_size = 512, epochs = 100, callbacks = [callback] ,validation_data = (x_test, y_test))
     y_pred = model.predict(x_test)
     messagebox.showinfo("Message", "Success for training and testing data")
 
 
 def save_model():
-    model_path = filedialog.askdirectory() + "/model" 
-    model.save(model_path)
+    model_path = filedialog.askdirectory() 
+    model.save(model_path + "/backdoor.h5")
 
 def total_dataset_and_split_data():
     global ent
@@ -324,11 +331,11 @@ def train_save_model():
     button7 = Button(newWindow, text="Save model", command=save_model)
     button7.pack()
 
-button = Button(tk, text="Preprocessing", command=preprocessing, width=10, height=5)
-button2 = Button(tk, text="Total dataset", command= total_dataset_and_split_data, width=10, height=5)
+button = Button(tk, text="Preprocessing", command=preprocessing, height=3)
+button2 = Button(tk, text="Total dataset", command= total_dataset_and_split_data, height=3)
 button.pack(side=LEFT,padx=20,pady=20)
 button2.pack(side=LEFT,padx=20,pady=40)
-button3 = Button(tk, text="Train data and save model", width=15, height=5, command=train_save_model)
+button3 = Button(tk, text="Train data and save model", height=3, command=train_save_model)
 button3.pack(side=LEFT, padx=30, pady=40)
 
 tk.mainloop()
